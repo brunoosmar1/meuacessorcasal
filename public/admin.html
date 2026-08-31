@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meu Assessor — Admin</title>
+<style>
+  :root { --ink:#0f1e1c; --paper:#f6f5f0; --moss:#1f6f5c; --moss-dark:#164f42; --gold:#c9a24b; --line:#d8d4c4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Segoe UI", system-ui, sans-serif; background:var(--paper); color:var(--ink); }
+  header { background:var(--moss-dark); color:var(--paper); padding:18px 24px; }
+  header h1 { font-size:20px; margin:0; }
+  main { max-width:900px; margin:0 auto; padding:24px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat { background:white; border:1px solid var(--line); border-radius:10px; padding:16px; text-align:center; }
+  .stat .label { font-size:12px; color:#666; }
+  .stat .value { font-size:24px; font-weight:700; margin-top:6px; color:var(--moss-dark); }
+  .card { background:white; border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px; }
+  .card h3 { margin:0 0 12px 0; font-size:15px; color:var(--moss-dark); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid #f0eee4; }
+  #denied { display:none; padding:40px; text-align:center; color:#888; }
+</style>
+</head>
+<body>
+<header><h1>Meu Assessor · Painel Administrativo</h1></header>
+<main id="content">
+  <div class="grid" id="statsGrid"></div>
+  <div class="card">
+    <h3>Mensagens recebidas (últimos 14 dias)</h3>
+    <div id="chartBars" style="display:flex; align-items:flex-end; gap:4px; height:100px;"></div>
+  </div>
+  <div class="card">
+    <h3>Usuários mais recentes</h3>
+    <table id="usersTable"><thead><tr><th>Nome</th><th>Telefone</th><th>Desde</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+<div id="denied">
+  <p>Acesso restrito a administradores.</p>
+  <a href="/">Voltar</a>
+</div>
+
+<script>
+function brl(v) { return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+
+async function load() {
+  const meRes = await fetch("/api/auth/me", { credentials: "include" });
+  if (!meRes.ok) { location.href = "/"; return; }
+  const me = await meRes.json();
+  if (!me.isAdmin) {
+    document.getElementById("content").style.display = "none";
+    document.getElementById("denied").style.display = "block";
+    return;
+  }
+
+  const res = await fetch("/api/admin/metrics", { credentials: "include" });
+  if (!res.ok) {
+    document.getElementById("content").style.display = "none";
+    document.getElementById("denied").style.display = "block";
+    return;
+  }
+  const m = await res.json();
+
+  const income = m.volumeThisMonth.find(v => v.type === "income")?.total || 0;
+  const expense = m.volumeThisMonth.find(v => v.type === "expense")?.total || 0;
+
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="stat"><div class="label">Usuários totais</div><div class="value">${m.totalUsers}</div></div>
+    <div class="stat"><div class="label">Ativos (7 dias)</div><div class="value">${m.activeUsers7d}</div></div>
+    <div class="stat"><div class="label">Ativos (30 dias)</div><div class="value">${m.activeUsers30d}</div></div>
+    <div class="stat"><div class="label">Mensagens totais</div><div class="value">${m.totalMessages}</div></div>
+    <div class="stat"><div class="label">Lançamentos totais</div><div class="value">${m.totalTransactions}</div></div>
+    <div class="stat"><div class="label">Volume este mês</div><div class="value" style="font-size:16px;">${brl(income)} / ${brl(expense)}</div></div>
+    <div class="stat"><div class="label">Google Agenda conectados</div><div class="value">${m.googleConnections}</div></div>
+    <div class="stat"><div class="label">Bancos conectados</div><div class="value">${m.openFinanceConnections}</div></div>
+  `;
+
+  const max = Math.max(1, ...m.messagesPerDay.map(d => d.n));
+  document.getElementById("chartBars").innerHTML = m.messagesPerDay.map(d => `
+    <div title="${d.day}: ${d.n}" style="flex:1; background:#1f6f5c; height:${(d.n / max * 100).toFixed(0)}%; border-radius:3px 3px 0 0;"></div>
+  `).join("") || '<span style="color:#888; font-size:13px;">Sem dados ainda.</span>';
+
+  document.querySelector("#usersTable tbody").innerHTML = m.newestUsers.map(u => `
+    <tr><td>${u.name || "—"}</td><td>${u.phone}</td><td>${u.created_at}</td></tr>
+  `).join("");
+}
+
+load();
+</script>
+</body>
+</html>

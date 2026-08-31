@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meu Assessor — Protótipo</title>
+<style>
+  :root {
+    --ink: #0f1e1c;
+    --paper: #f6f5f0;
+    --moss: #1f6f5c;
+    --moss-dark: #164f42;
+    --gold: #c9a24b;
+    --line: #d8d4c4;
+    --bubble-in: #ffffff;
+    --bubble-out: #dcf3e6;
+    --danger: #b3492e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  header {
+    background: var(--moss-dark);
+    color: var(--paper);
+    padding: 18px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 20px;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+  header span {
+    font-size: 13px;
+    opacity: 0.75;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    background: var(--moss);
+    padding: 0 24px;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: var(--paper);
+    padding: 12px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+    border-bottom: 3px solid transparent;
+  }
+  nav button.active {
+    opacity: 1;
+    border-bottom: 3px solid var(--gold);
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Chat */
+  #chatlog {
+    background: #efece0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    height: 420px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 9px 13px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.in { align-self: flex-start; background: var(--bubble-in); border: 1px solid var(--line); }
+  .bubble.out { align-self: flex-end; background: var(--bubble-out); }
+  .chat-input {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .chat-input input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .chat-input button, .primary-btn {
+    background: var(--moss);
+    color: white;
+    border: none;
+    padding: 0 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .hint {
+    font-size: 12.5px;
+    color: #555;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .examples button {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--moss-dark);
+  }
+
+  /* Dashboard */
+  .card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .card h3 { margin: 0 0 12px 0; font-size: 15px; color: var(--moss-dark); }
+  .stat-row { display: flex; gap: 12px; }
+  .stat {
+    flex: 1;
+    background: #f2f0e6;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat .label { font-size: 12px; color: #666; }
+  .stat .value { font-size: 19px; font-weight: 600; margin-top: 4px; }
+  .cat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0eee4;
+    font-size: 14px;
+  }
+  .bar {
+    height: 6px;
+    background: var(--moss);
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+  .empty { color: #888; font-size: 13.5px; }
+  #refreshBtn { float: right; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" style="max-width:380px; margin:60px auto; padding:0 20px;">
+  <h2 style="color:#164f42;">Meu Assessor</h2>
+  <p style="font-size:14px; color:#555;">Entre com seu número de WhatsApp para acessar sua conta.</p>
+
+  <div id="stepPhone">
+    <input id="loginPhone" type="tel" placeholder="Ex: 5511999999999" style="width:100%; padding:12px; border-radius:8px; border:1px solid #d8d4c4; font-size:14px; margin-bottom:10px;" />
+    <input id="loginName" type="text" placeholder="Seu nome (opcional, só na primeira vez)" style="width:100%; padding:12px; border-radius:8px; border:1px solid #d8d4c4; font-size:14px; margin-bottom:10px;" />
+    <button class="primary-btn" style="width:100%; padding:12px;" onclick="requestCode()">Enviar código</button>
+    <p id="loginMsg" style="font-size:13px; color:#b3492e; margin-top:8px;"></p>
+  </div>
+
+  <div id="stepCode" style="display:none;">
+    <p style="font-size:13px; color:#555;">Digite o código de 6 dígitos enviado para o seu WhatsApp.</p>
+    <input id="loginCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%; padding:12px; border-radius:8px; border:1px solid #d8d4c4; font-size:20px; letter-spacing:6px; text-align:center; margin-bottom:10px;" />
+    <button class="primary-btn" style="width:100%; padding:12px;" onclick="verifyCode()">Entrar</button>
+    <p id="codeMsg" style="font-size:13px; color:#b3492e; margin-top:8px;"></p>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+<header>
+  <h1>Meu Assessor · protótipo</h1>
+  <span id="userLabel"></span>
+  <span style="margin-left:auto; cursor:pointer; font-size:13px;" onclick="logout()">Sair</span>
+</header>
+
+<nav>
+  <button class="active" data-view="chat">Chat</button>
+  <button data-view="dashboard">Painel</button>
+</nav>
+
+<main>
+  <section id="view-chat" class="view active">
+    <div id="chatlog"></div>
+    <div class="chat-input">
+      <input id="msgInput" type="text" placeholder="Escreva como se fosse no WhatsApp..." />
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+    <div class="examples">
+      <button onclick="fill('Gastei 45 reais no mercado hoje')">gasto no mercado</button>
+      <button onclick="fill('Recebi 3000 de salário')">receita de salário</button>
+      <button onclick="fill('Conta de luz de 210 reais vence dia 10')">conta a pagar</button>
+      <button onclick="fill('Me lembra de ir ao dentista amanhã às 15h')">lembrete</button>
+      <button onclick="fill('Quero gastar no máximo 400 por mês com lazer')">definir orçamento</button>
+      <button onclick="fill('Como estão minhas finanças esse mês?')">resumo</button>
+      <button onclick="fill('Já paguei a conta de luz')">marcar conta como paga</button>
+      <button onclick="fill('Quais contas tenho pendentes?')">listar contas</button>
+      <button onclick="fill('Desfaz esse último lançamento')">desfazer</button>
+    </div>
+    <p class="hint">Isso simula a conversa que, no produto real, aconteceria dentro do WhatsApp. O motor de interpretação (Claude) e o banco de dados por trás são os mesmos que rodariam em produção. Fotos de boleto/comprovante também podem ser enviadas quando conectado ao WhatsApp real.</p>
+  </section>
+
+  <section id="view-dashboard" class="view">
+    <button id="refreshBtn" class="primary-btn" onclick="loadDashboard()">Atualizar</button>
+    <div class="card">
+      <h3>Este mês</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="label">Receitas</div><div class="value" id="totalIn">R$ 0</div></div>
+        <div class="stat"><div class="label">Despesas</div><div class="value" id="totalOut">R$ 0</div></div>
+        <div class="stat"><div class="label">Saldo</div><div class="value" id="totalBalance">R$ 0</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Gastos por categoria</h3>
+      <div id="categoryList" class="empty">Nenhum gasto registrado ainda.</div>
+    </div>
+    <div class="card">
+      <h3>Atividade recente da família</h3>
+      <div id="recentList" class="empty">Nenhum lançamento ainda.</div>
+    </div>
+    <div class="card">
+      <h3>Contas em aberto</h3>
+      <div id="billsList" class="empty">Nenhuma conta pendente.</div>
+    </div>
+    <div class="card">
+      <h3>Lembretes</h3>
+      <div id="remindersList" class="empty">Nenhum lembrete ativo.</div>
+    </div>
+    <div class="card">
+      <h3>Família</h3>
+      <div id="householdInfo" class="empty">Carregando...</div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <input id="joinCodeInput" type="text" placeholder="Código de convite" style="flex:1; padding:10px; border-radius:8px; border:1px solid #d8d4c4; font-size:13px; text-transform:uppercase;" />
+        <button class="primary-btn" onclick="joinHousehold()">Entrar</button>
+      </div>
+      <p id="joinMsg" style="font-size:12.5px; color:#b3492e; margin-top:6px;"></p>
+    </div>
+    <div class="card">
+      <h3>Google Agenda</h3>
+      <div id="googleStatus" class="empty">Verificando conexão...</div>
+    </div>
+    <div class="card">
+      <h3>Conexão bancária (Open Finance)</h3>
+      <div id="ofStatus" class="empty">Verificando conexão...</div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="https://cdn.pluggy.ai/pluggy-connect/v2.9.0/pluggy-connect.js"></script>
+<script>
+let CURRENT_USER = null;
+const chatlog = document.getElementById("chatlog");
+const input = document.getElementById("msgInput");
+
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-" + btn.dataset.view).classList.add("active");
+    if (btn.dataset.view === "dashboard") loadDashboard();
+  };
+});
+
+function fill(text) {
+  input.value = text;
+  input.focus();
+}
+
+function addBubble(text, dir) {
+  const b = document.createElement("div");
+  b.className = "bubble " + dir;
+  b.textContent = text;
+  chatlog.appendChild(b);
+  chatlog.scrollTop = chatlog.scrollHeight;
+}
+
+async function loadHistory() {
+  const res = await fetch(`/api/history`, { credentials: "include" });
+  const rows = await res.json();
+  chatlog.innerHTML = "";
+  rows.forEach(r => addBubble(r.content, r.direction));
+  if (rows.length === 0) {
+    addBubble("Oi! Eu sou o seu assessor. Me conta um gasto, uma receita, um lembrete ou peça um resumo financeiro.", "in");
+  }
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  addBubble(text, "out");
+  input.value = "";
+  addBubble("digitando...", "in");
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    chatlog.removeChild(chatlog.lastChild);
+    if (data.error) {
+      addBubble("⚠️ " + data.error, "in");
+    } else {
+      addBubble(data.reply, "in");
+    }
+  } catch (e) {
+    chatlog.removeChild(chatlog.lastChild);
+    addBubble("Erro de conexão com o servidor.", "in");
+  }
+}
+
+input.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+function brl(v) {
+  return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+async function loadDashboard() {
+  const res = await fetch(`/api/summary`, { credentials: "include" });
+  const data = await res.json();
+
+  const inc = data.totals.find(t => t.type === "income")?.total || 0;
+  const exp = data.totals.find(t => t.type === "expense")?.total || 0;
+  document.getElementById("totalIn").textContent = brl(inc);
+  document.getElementById("totalOut").textContent = brl(exp);
+  document.getElementById("totalBalance").textContent = brl(inc - exp);
+
+  const catEl = document.getElementById("categoryList");
+  if (data.byCategory.length === 0) {
+    catEl.innerHTML = '<span class="empty">Nenhum gasto registrado ainda.</span>';
+  } else {
+    const max = Math.max(...data.byCategory.map(c => c.total));
+    catEl.innerHTML = data.byCategory.map(c => `
+      <div class="cat-row">
+        <span>${c.category}</span><span>${brl(c.total)}</span>
+      </div>
+      <div class="bar" style="width:${(c.total / max * 100).toFixed(0)}%"></div>
+    `).join("");
+  }
+
+  const recentEl = document.getElementById("recentList");
+  recentEl.innerHTML = data.recentByPerson.length === 0
+    ? '<span class="empty">Nenhum lançamento ainda.</span>'
+    : data.recentByPerson.map(t => {
+        const who = t.user_name || t.user_phone;
+        const sign = t.type === "expense" ? "-" : "+";
+        const color = t.type === "expense" ? "#b3492e" : "#1f6f5c";
+        return `<div class="cat-row"><span>${who} · ${t.category}${t.description ? " (" + t.description + ")" : ""}</span><span style="color:${color}">${sign}${brl(t.amount)}</span></div>`;
+      }).join("");
+
+  const billsEl = document.getElementById("billsList");
+  billsEl.innerHTML = data.bills.length === 0
+    ? '<span class="empty">Nenhuma conta pendente.</span>'
+    : data.bills.map(b => `<div class="cat-row"><span>${b.description} (${b.type === "payable" ? "a pagar" : "a receber"}) — ${b.user_name || ""}</span><span>${brl(b.amount)} — ${b.due_date}</span></div>`).join("");
+
+  const remEl = document.getElementById("remindersList");
+  remEl.innerHTML = data.reminders.length === 0
+    ? '<span class="empty">Nenhum lembrete ativo.</span>'
+    : data.reminders.map(r => `<div class="cat-row"><span>${r.title}</span><span>${r.remind_at.replace("T", " ")}</span></div>`).join("");
+
+  const gEl = document.getElementById("googleStatus");
+  gEl.innerHTML = data.googleConnected
+    ? '<span style="color:#1f6f5c">✅ Conectado — seus lembretes também viram eventos no Google Agenda.</span>'
+    : `<button class="primary-btn" onclick="window.open('/auth/google/start', '_blank')">Conectar Google Agenda</button>`;
+
+  const ofEl = document.getElementById("ofStatus");
+  ofEl.innerHTML = data.openFinanceConnected
+    ? '<span style="color:#1f6f5c">✅ Conta bancária conectada — transações são importadas automaticamente.</span>'
+    : `<button class="primary-btn" onclick="connectOpenFinance()">Conectar conta bancária</button>`;
+
+  loadHousehold();
+}
+
+async function loadHousehold() {
+  const res = await fetch(`/api/household/me`, { credentials: "include" });
+  if (!res.ok) return;
+  const data = await res.json();
+  const el = document.getElementById("householdInfo");
+  const membersHtml = data.members.map(m =>
+    `<div class="cat-row"><span>${m.isYou ? "Você" : (m.name || m.phone)}</span><span>${m.phone}</span></div>`
+  ).join("");
+  el.innerHTML = `
+    ${data.members.length > 1
+      ? `<p style="font-size:13px; color:#1f6f5c; margin:0 0 8px 0;">✅ Compartilhando gastos com ${data.members.length - 1} pessoa(s).</p>`
+      : `<p style="font-size:13px; color:#666; margin:0 0 8px 0;">Você ainda está sozinho(a). Compartilhe o código abaixo com quem quiser dividir os gastos.</p>`
+    }
+    ${membersHtml}
+    <div class="cat-row" style="border-top:1px solid #f0eee4; margin-top:6px; padding-top:8px;">
+      <span>Seu código de convite</span>
+      <span style="font-weight:600; letter-spacing:1px;">${data.inviteCode}</span>
+    </div>
+  `;
+}
+
+async function joinHousehold() {
+  const code = document.getElementById("joinCodeInput").value.trim();
+  const msgEl = document.getElementById("joinMsg");
+  msgEl.style.color = "#b3492e";
+  msgEl.textContent = "";
+  if (!code) { msgEl.textContent = "Informe o código de convite."; return; }
+
+  const res = await fetch(`/api/household/join`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inviteCode: code }),
+  });
+  const data = await res.json();
+  if (data.error) { msgEl.textContent = data.error; return; }
+  msgEl.style.color = "#1f6f5c";
+  msgEl.textContent = "Pronto! Agora vocês compartilham os gastos.";
+  document.getElementById("joinCodeInput").value = "";
+  loadDashboard();
+}
+
+async function connectOpenFinance() {
+  const res = await fetch(`/api/open-finance/connect-token`, { method: "POST", credentials: "include" });
+  const data = await res.json();
+  if (data.error) {
+    alert("Open Finance ainda não está configurado neste servidor: " + data.error);
+    return;
+  }
+  const pluggyConnect = new PluggyConnect({
+    connectToken: data.accessToken,
+    includeSandbox: true,
+    onSuccess: async (itemData) => {
+      await fetch(`/api/open-finance/link`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: itemData.item.id, institution: itemData.item.connector?.name }),
+      });
+      loadDashboard();
+    },
+  });
+  pluggyConnect.init();
+}
+
+// ---------- Login ----------
+
+async function requestCode() {
+  const phone = document.getElementById("loginPhone").value.trim();
+  const name = document.getElementById("loginName").value.trim();
+  const msgEl = document.getElementById("loginMsg");
+  msgEl.textContent = "";
+  if (!phone) { msgEl.textContent = "Informe seu número."; return; }
+
+  try {
+    const res = await fetch("/api/auth/request-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, name }),
+    });
+    const data = await res.json();
+    if (data.error) { msgEl.textContent = data.error; return; }
+
+    document.getElementById("stepPhone").style.display = "none";
+    document.getElementById("stepCode").style.display = "block";
+    if (data.simulated && data.devCode) {
+      document.getElementById("codeMsg").style.color = "#1f6f5c";
+      document.getElementById("codeMsg").textContent = `Modo simulado (sem WhatsApp real configurado): seu código é ${data.devCode}`;
+    }
+  } catch (e) {
+    msgEl.textContent = "Erro de conexão com o servidor.";
+  }
+}
+
+async function verifyCode() {
+  const phone = document.getElementById("loginPhone").value.trim();
+  const code = document.getElementById("loginCode").value.trim();
+  const msgEl = document.getElementById("codeMsg");
+
+  try {
+    const res = await fetch("/api/auth/verify", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code }),
+    });
+    const data = await res.json();
+    if (data.error) { msgEl.style.color = "#b3492e"; msgEl.textContent = data.error; return; }
+    await enterApp();
+  } catch (e) {
+    msgEl.textContent = "Erro de conexão com o servidor.";
+  }
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  location.reload();
+}
+
+async function enterApp() {
+  const res = await fetch("/api/auth/me", { credentials: "include" });
+  if (!res.ok) return; // não autenticado, fica na tela de login
+  const user = await res.json();
+  CURRENT_USER = user;
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("userLabel").textContent = user.name ? `Olá, ${user.name}` : user.phone;
+  if (user.isAdmin) {
+    document.getElementById("userLabel").innerHTML += ' · <a href="/admin.html" style="color:#c9a24b;">painel admin</a>';
+  }
+  await loadHistory();
+}
+
+enterApp();
+</script>
+</body>
+</html>
